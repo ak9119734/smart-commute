@@ -1,0 +1,169 @@
+/* Smart Commute – Uber-inspired CSS (dark-first) */
+
+/* ========== 1) Tokens ========== */
+:root {
+  /* Light */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #0b0f14;
+  --ink-muted: #5b626c;
+  --border: #e6e8ec;
+  --accent: #111111;
+  --accent-ink: #ffffff;
+  --accent-2: #0a84ff;
+
+  --radius: 14px;
+  --radius-lg: 18px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,.06);
+  --shadow-md: 0 12px 34px rgba(0,0,0,.12);
+  --ring: 0 0 0 3px rgba(17,17,17,.14);
+
+  --font: 15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --h1: 24px; --h2: 20px; --h3: 16px;
+}
+:root[data-theme="dark"] {
+  --bg: #0b0e13;
+  --surface: #11151b;
+  --ink: #f1f3f5;
+  --ink-muted: #a3aab5;
+  --border: #232832;
+  --accent: #ffffff;
+  --accent-ink: #0b0e13;
+  --accent-2: #63a4ff;
+  --ring: 0 0 0 3px rgba(255,255,255,.18);
+}
+
+/* ========== 2) Base ========== */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+html { transition: background-color .2s linear, color .2s linear; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+img, svg, video { display: block; max-width: 100%; }
+::selection { background: color-mix(in srgb, var(--accent-2) 22%, transparent); }
+:where(button,a,input,textarea) { outline: none; }
+:where(button,a,input,textarea):focus-visible { box-shadow: var(--ring); }
+
+/* ========== 3) Layout ========== */
+.container { max-width: 1120px; margin-inline: auto; padding-inline: 20px; }
+.stack-16 > * + * { margin-top: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .grid-3 { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+.border { border: 1px solid var(--border); border-radius: var(--radius); }
+
+/* ========== 4) Header/Nav ========== */
+header.appbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+  backdrop-filter: saturate(1.2) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.appbar__row { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; }
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand__logo {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center; font-weight: 700;
+}
+.brand__title { font-weight: 700; font-size: var(--h2); }
+.brand__sub { font-size: 12px; color: var(--ink-muted); }
+
+.nav { display: flex; align-items: center; gap: 8px; }
+.nav__btn {
+  border: 1px solid var(--border);
+  background: transparent; color: inherit;
+  padding: 8px 12px; border-radius: 999px;
+  font-weight: 600; cursor: pointer;
+}
+.nav__btn:hover { background: color-mix(in oklab, var(--surface) 70%, transparent); }
+.nav__btn.is-active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* Theme switch */
+.theme-switch {
+  width: 50px; height: 28px; border-radius: 999px;
+  position: relative; background: #d1d5db; border: 1px solid var(--border);
+  cursor: pointer;
+}
+:root[data-theme="dark"] .theme-switch { background: #0d1117; border-color: #20242c; }
+.theme-switch__dot {
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 999px;
+  background: #fff; transition: transform .2s ease;
+}
+:root[data-theme="dark"] .theme-switch__dot { transform: translateX(22px); }
+
+/* ========== 5) Buttons ========== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+  padding: 10px 14px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--surface); color: inherit;
+  cursor: pointer; user-select: none;
+}
+.btn:hover { box-shadow: var(--shadow-sm); }
+.btn--primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn--ghost { background: transparent; }
+.btn--danger { border-color: #ffb4b4; color: #b42323; }
+
+/* ========== 6) Pills/Chips ========== */
+.pill {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .18rem .6rem; border-radius: 999px;
+  border: 1px solid var(--border); font-size: 12px;
+}
+.pill--green { background: #ecfdf5; color: #05603a; border-color: #a7f3d0; }
+.pill--amber { background: #fffbeb; color: #8a4b0e; border-color: #fcd34d; }
+.pill--blue  { background: #eef2ff; color: #243ea3; border-color: #bfdbfe; }
+:root[data-theme="dark"] .pill--green { background: #053524; color: #a6f2cc; border-color: #0f5c41; }
+:root[data-theme="dark"] .pill--amber { background: #3b2b06; color: #ffd99b; border-color: #5a3e07; }
+:root[data-theme="dark"] .pill--blue  { background: #0b1431; color: #b5caff; border-color: #1b2a55; }
+
+/* ========== 7) Forms ========== */
+input, textarea {
+  font: inherit; color: inherit; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+}
+textarea { resize: vertical; }
+
+/* ========== 8) Map Placeholder ========== */
+.map {
+  position: relative; height: 260px;
+  border-radius: 18px; border: 1px solid var(--border); overflow: hidden;
+  background: linear-gradient(135deg, #0f172a 0%, #111827 40%, #0b1220 100%);
+}
+.map::before {
+  content: ""; position: absolute; inset: 0; opacity: .2;
+  background-image: radial-gradient(rgba(255,255,255,.45) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+.map__chrome { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 14px; color: #fff; }
+.map__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.map__meta { font-size: 12px; opacity: .9; }
+
+/* ========== 9) Footer ========== */
+footer.appfoot { background: var(--surface); border-top: 1px solid var(--border); }
+.appfoot__row {
+  color: var(--ink-muted); font-size: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 20px;
+}
+
+/* ========== 10) Helpers ========== */
+.text-muted { color: var(--ink-muted); }
+.hide-sm { display: none; }
+@media (min-width: 720px) { .hide-sm { display: inline; } }
