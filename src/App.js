@@ -1,307 +1,394 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-// Smart Commute – Uber‑inspired, dark‑first web UI
-// - Global theme toggle in header (persists to localStorage)
-// - Minimal, bold, map‑first cards
-// - Metrics removed
+/* App.jsx — updated to use selectedRoute, live, and endTrip so there are no lint warnings.
+   Keeps previous UI behavior: sidebar, night-mode toggle, metrics, ride history, ETA, onboarding.
+*/
 
-const ThemeSwitch = ({ night, setNight }) => (
-  <button
-    className="theme-switch"
-    aria-label="Toggle theme"
-    title="Toggle Night Mode"
-    onClick={() => setNight(v => !v)}
-  >
-    <span className="theme-switch__dot" />
-  </button>
+const IconSun = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <circle cx="12" cy="12" r="4" fill="currentColor" />
+    <g stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.2" y1="4.2" x2="5.6" y2="5.6" />
+      <line x1="18.4" y1="18.4" x2="19.8" y2="19.8" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+    </g>
+  </svg>
 );
 
-const Header = ({ tab, setTab, night, setNight }) => (
-  <header className="appbar">
-    <div className="container appbar__row">
-      <div className="brand">
-        <div className="brand__logo">SC</div>
-        <div>
+const IconMoon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
+    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" fill="currentColor" />
+  </svg>
+);
+
+const Sidebar = ({ tab, setTab, night, setNight }) => {
+  const items = useMemo(() => [
+    ["Routes", "routes"],
+    ["Driver ETA", "eta"],
+    ["Checkout", "checkout"],
+    ["Safety", "safety"],
+    ["Metrics", "metrics"],
+    ["Onboarding", "onboarding"],
+  ], []);
+
+  return (
+    <aside className="sidebar" aria-label="Primary navigation">
+      <div className="sidebar__brand" aria-hidden>
+        <div className="logo">SC</div>
+        <div className="brand">
           <div className="brand__title">Smart Commute</div>
-          <div className="brand__sub">Shift‑friendly navigation</div>
+          <div className="brand__sub">Shift navigation</div>
         </div>
       </div>
 
-      <nav className="nav hide-sm">
-        {[ ["Home","home"], ["Routes","routes"], ["Safety","safety"], ["Checkout","checkout"] ].map(([label,key]) => (
+      <nav className="sidenav" role="navigation" aria-label="Main">
+        {items.map(([label, key]) => (
           <button
             key={key}
+            type="button"
+            className={`sidenav__item ${tab === key ? "is-active" : ""}`}
             onClick={() => setTab(key)}
-            className={`nav__btn ${tab===key?"is-active":""}`}
-          >{label}</button>
+            aria-current={tab === key ? "page" : undefined}
+          >
+            <span className="initial" aria-hidden>{label[0]}</span>
+            <span className="sidenav__label">{label}</span>
+          </button>
         ))}
       </nav>
 
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <span className="text-muted hide-sm" style={{fontSize:12}}>{night?"Night":"Light"}</span>
-        <ThemeSwitch night={night} setNight={setNight} />
+      <div className="sidebar__spacer" />
+
+      <div className="sidebar__footer">
+        <button
+          type="button"
+          className="theme-toggle"
+          aria-pressed={!!night}
+          title={night ? "Switch to light" : "Switch to dark"}
+          onClick={() => setNight((v) => !v)}
+        >
+          <span className="theme-toggle__icon" aria-hidden>
+            {night ? <IconMoon /> : <IconSun />}
+          </span>
+        </button>
       </div>
-    </div>
-  </header>
-);
-
-const Pill = ({ tone = "blue", children }) => (
-  <span className={`pill ${
-    tone==="green"?"pill--green": tone==="amber"?"pill--amber":"pill--blue"
-  }`}>{children}</span>
-);
-
-const MapChrome = ({ title, eta, distance }) => (
-  <div className="map__chrome">
-    <div className="map__row">
-      <Pill tone="blue">{title}</Pill>
-      <div className="map__meta">ETA {eta} • {distance} km</div>
-    </div>
-    <div className="map__row">
-      <div className="map__meta">Prototype preview</div>
-    </div>
-  </div>
-);
-
-const FakeMap = ({ route }) => (
-  <div className="map">
-    <MapChrome title={route.title} eta={route.eta} distance={route.distance} />
-  </div>
-);
-
-const RouteCard = ({ route, onStart }) => (
-  <div className="card" style={{display:"grid", gap:12}}>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
-      <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <h3 style={{margin:0, fontSize:"var(--h3)", fontWeight:700}}>{route.title}</h3>
-        {route.badges.map(b => <Pill key={b.text} tone={b.tone}>{b.text}</Pill>)}
-      </div>
-      <div className="text-muted" style={{fontSize:13}}>{route.distance} km • {route.eta} min</div>
-    </div>
-    <FakeMap route={route} />
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:14}}>
-      <span className="text-muted">Lighting: <b>{route.lighting}</b> • Activity: <b>{route.activity}</b></span>
-      <button className="btn btn--primary" onClick={()=>onStart(route)}>Start</button>
-    </div>
-  </div>
-);
-
-const FeedbackSheet = ({ open, onClose, onSubmit }) => {
-  const [rating, setRating] = useState(5);
-  const [note, setNote] = useState("");
-  if (!open) return null;
-  return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.35)",display:"grid",placeItems:"end center",zIndex:60}}>
-      <div className="card" style={{width:"min(520px, 100%)", borderRadius:20, margin:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-          <h3 style={{margin:0, fontSize:"var(--h2)", fontWeight:700}}>Trip feedback</h3>
-          <button className="btn" onClick={onClose}>Close</button>
-        </div>
-        <div className="stack-16">
-          <div>
-            <div className="text-muted" style={{fontSize:14, marginBottom:6}}>How safe did you feel?</div>
-            <div style={{display:"flex",gap:8}}>
-              {[1,2,3,4,5].map(n => (
-                <button key={n}
-                  onClick={()=>setRating(n)}
-                  className={`btn ${rating>=n?"btn--primary":""}`}
-                  style={{width:40,height:40,borderRadius:999}}
-                >{n}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-muted" style={{fontSize:14, marginBottom:6}}>Anything to report?</div>
-            <textarea rows={3} value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g., Poor lighting near Oak St." style={{width:"100%"}}/>
-          </div>
-          <div style={{display:"flex",justifyContent:"end",gap:10}}>
-            <button className="btn" onClick={onClose}>Skip</button>
-            <button className="btn btn--primary" onClick={()=>onSubmit({rating,note})}>Submit</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </aside>
   );
 };
 
-export default function App(){
-  const [tab, setTab] = useState("home");
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [live, setLive] = useState(false);
+const Pill = ({ tone = "blue", children }) => {
+  const cls = tone === "green" ? "pill--green" : tone === "amber" ? "pill--amber" : tone === "red" ? "pill--red" : "pill--blue";
+  return <span className={`pill ${cls}`}>{children}</span>;
+};
+
+const FakeMap = ({ title = "Route preview", eta = 10, distance = 4.2 }) => (
+  <div className="map" role="img" aria-label={`${title} preview`}>
+    <div className="map__chrome">
+      <div className="map__row">
+        <Pill tone="blue">{title}</Pill>
+        <div className="map__meta">ETA {eta} • {distance} km</div>
+      </div>
+      <div className="map__row"><div className="map__meta">Prototype preview</div></div>
+    </div>
+  </div>
+);
+
+export default function App() {
+  const [tab, setTab] = useState("routes");
   const [night, setNight] = useState(() => {
-    const saved = localStorage.getItem("smartcommute.theme");
-    if (saved) return saved === "dark";
+    const s = localStorage.getItem("smartcommute.theme");
+    if (s) return s === "dark";
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
-  const [sosOpen, setSosOpen] = useState(false);
+
+  // App state used actively
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [live, setLive] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
-  useEffect(()=>{
-    document.documentElement.setAttribute("data-theme", night?"dark":"light");
-    localStorage.setItem("smartcommute.theme", night?"dark":"light");
-  },[night]);
+  // MAC metric + history (dummy)
+  const [mac, setMac] = useState(() => Number(localStorage.getItem("smartcommute.mac") || 124));
+  const [macHistory, setMacHistory] = useState(() => {
+    const saved = localStorage.getItem("smartcommute.macHistory");
+    return saved ? JSON.parse(saved) : [96, 102, 108, 114, 119, 121, 124];
+  });
 
-  const routes = useMemo(()=>[
-    { key:"safest", title:"Safest Route", eta:18, distance:6.4, lighting:"Well‑lit", activity:"High", badges:[{text:"Safety 9.2", tone:"green"},{text:"Patrol zone", tone:"blue"}] },
-    { key:"fastest", title:"Fastest Route", eta:14, distance:5.8, lighting:"Mixed", activity:"Medium", badges:[{text:"Express", tone:"blue"}] },
-    { key:"cheapest", title:"Cheapest Route", eta:20, distance:6.9, lighting:"Well‑lit", activity:"Medium", badges:[{text:"Shared ₹49", tone:"amber"}] },
-  ],[]);
+  // Dummy ride history for Metrics
+  const [rideHistory] = useState(() => [
+    { id: 1, ts: "2025-11-09 08:12", from: "Hinjawadi", to: "Pune Station", payment: "UPI", mode: "Car", fare: 89 },
+    { id: 2, ts: "2025-11-07 18:05", from: "Kharadi", to: "Viman Nagar", payment: "Card", mode: "Bike", fare: 45 },
+    { id: 3, ts: "2025-10-28 07:40", from: "Baner", to: "Magarpatta", payment: "UPI", mode: "Car", fare: 99 },
+    { id: 4, ts: "2025-10-21 22:10", from: "Aundh", to: "Kothrud", payment: "Cash", mode: "Shared", fare: 39 },
+  ]);
 
-  const startTrip = (route) => { setSelectedRoute(route); setLive(true); setTab("routes"); };
-  const endTrip = () => { setLive(false); setSelectedRoute(null); setFeedbackOpen(true); };
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", night ? "dark" : "light");
+    localStorage.setItem("smartcommute.theme", night ? "dark" : "light");
+  }, [night]);
 
-  const Home = () => (
-    <section className="container" style={{paddingTop:24, paddingBottom:24}}>
-      <div className="grid-3">
-        <div className="card" style={{gridColumn:"span 2"}}>
-          <h2 style={{margin:"0 0 6px", fontSize:"var(--h2)", fontWeight:800}}>Safe Commute Now</h2>
-          <p className="text-muted" style={{margin:"0 0 16px", fontSize:14}}>End of shift detected • Recommendations based on safety, reliability, and cost.</p>
-          <div style={{display:"flex", gap:10, flexWrap:"wrap"}}>
-            <button className="btn btn--primary" onClick={()=>setTab("routes")}>View routes</button>
-            <button className="btn" onClick={()=>setTab("safety")}>Safety tools</button>
+  useEffect(() => { localStorage.setItem("smartcommute.mac", String(mac)); }, [mac]);
+  useEffect(() => { localStorage.setItem("smartcommute.macHistory", JSON.stringify(macHistory)); }, [macHistory]);
+
+  const routes = useMemo(() => [
+    { key: "fastest", title: "Fastest Route", eta: 14, distance: 5.8, lighting: "Mixed", badges: [{ text: "Express", tone: "blue" }] },
+    { key: "safest", title: "Safest Route", eta: 18, distance: 6.4, lighting: "Well-lit", badges: [{ text: "Safety 9.2", tone: "green" }] },
+    { key: "cheapest", title: "Cheapest Route", eta: 20, distance: 6.9, lighting: "Well-lit", badges: [{ text: "Shared ₹49", tone: "amber" }] },
+  ], []);
+
+  // Start a trip: sets selectedRoute and live
+  const startTrip = (route, openEta = false) => {
+    setSelectedRoute(route);
+    setLive(true);
+    if (openEta) setTab("eta");
+  };
+
+  // End trip: clear selection, flag not-live, open feedback
+  const endTrip = () => {
+    if (!live) return;
+    setLive(false);
+    setSelectedRoute(null);
+    setFeedbackOpen(true);
+  };
+
+  const submitFeedback = (rating = 5) => {
+    setFeedbackOpen(false);
+    setMac((m) => {
+      const next = m + 1;
+      setMacHistory((h) => [...h.slice(-19), next]);
+      return next;
+    });
+    setTab("metrics");
+    const t = document.createElement("div");
+    t.className = "micro-toast";
+    t.textContent = `Thanks — safety rating ${rating}/5 recorded`;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add("visible"), 50);
+    setTimeout(() => { t.classList.remove("visible"); setTimeout(() => t.remove(), 350); }, 2600);
+  };
+
+  // UI sections
+  const RoutesSection = () => (
+    <section className="page" aria-labelledby="routes-heading">
+      <div className="card hero card--elev">
+        <div className="hero__title" id="routes-heading">Commute, simplified.</div>
+        <div className="hero__sub muted">Fastest route, live ETA, sponsorship flow — streamlined.</div>
+
+        <div className="row" style={{ gap: 10, marginTop: 12 }}>
+          <button type="button" className="btn btn--primary" onClick={() => startTrip(routes[0], true)} disabled={live}>One-Tap Commute</button>
+          <button type="button" className="btn" onClick={() => setTab("eta")} disabled={live}>Open ETA</button>
+          <div style={{ marginLeft: "auto" }}>
+            {live && selectedRoute && (
+              <div className="pill pill--green" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <strong style={{ marginRight: 6 }}>Live</strong>
+                <span style={{ opacity: 0.9 }}>{selectedRoute.title} • ETA {selectedRoute.eta}m</span>
+                <button className="btn" style={{ marginLeft: 12 }} onClick={endTrip}>End</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-3" style={{ marginTop: 18 }}>
+        {routes.map((r) => (
+          <div key={r.key} className="card card--hover">
+            <div className="row-split">
+              <div>
+                <h3 className="h3" style={{ margin: 0 }}>{r.title}</h3>
+                <div className="muted small">{r.distance} km • {r.eta} min</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {r.badges.map(b => <Pill key={b.text} tone={b.tone}>{b.text}</Pill>)}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 12 }}><FakeMap title={r.title} eta={r.eta} distance={r.distance} /></div>
+
+            <div style={{ marginTop: 12 }} className="row-split">
+              <div className="muted small">Lighting: {r.lighting}</div>
+              <div>
+                <button className="btn" onClick={() => startTrip(r, true)} disabled={live}>Start</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Live trip card shown in page when a trip is ongoing */}
+      {live && selectedRoute && (
+        <div className="card card--elev live-trip" style={{ marginTop: 18 }}>
+          <div className="row-split">
+            <div className="strong">Live trip • {selectedRoute.title}</div>
+            <div className="muted small">ETA {selectedRoute.eta} min</div>
+          </div>
+
+          <FakeMap title={selectedRoute.title} eta={selectedRoute.eta} distance={selectedRoute.distance} />
+
+          <div className="row" style={{ gap: 10 }}>
+            <button type="button" className="btn btn--danger" onClick={() => {
+              // quick SOS behavior: show feedback panel as placeholder for alert flow
+              setFeedbackOpen(true);
+            }}>SOS</button>
+            <div style={{ marginLeft: "auto" }} />
+            <button type="button" className="btn btn--primary" onClick={endTrip}>End trip</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+
+  const ETASection = () => (
+    <section className="page" aria-labelledby="eta-heading">
+      <div className="card card--elev">
+        <div className="row-split">
+          <div>
+            <div className="muted tiny">Driver ETA</div>
+            <h3 className="h2" id="eta-heading" style={{ margin: "4px 0 0" }}>Driver ETA Tracker</h3>
+          </div>
+          <Pill tone="amber">Prototype</Pill>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <FakeMap title="Assigned Driver" eta={8} distance={4.2} />
+        </div>
+
+        <div className="row" style={{ gap: 10, marginTop: 12 }}>
+          <button type="button" className="btn btn--primary" onClick={() => setTab("checkout")} disabled={live}>Proceed to Checkout</button>
+        </div>
+      </div>
+    </section>
+  );
+
+  const CheckoutSection = () => (
+    <section className="page" aria-labelledby="checkout-heading">
+      <div className="card card--elev">
+        <div className="row-split">
+          <h3 className="h2" id="checkout-heading" style={{ margin: 0 }}>Checkout</h3>
+          <span className="chip">Last used: UPI • ankur@okicici</span>
+        </div>
+
+        <div className="border" style={{ padding: 12, marginTop: 12 }}>
+          <div className="row-split">
+            <div className="muted small">Shared ride (sponsored)</div>
+            <div className="big strong">₹49</div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12 }} className="row">
+          <button type="button" className="btn btn--primary" onClick={() => {
+            setMac((m) => {
+              const n = m + 1;
+              setMacHistory((h) => [...h.slice(-19), n]);
+              return n;
+            });
+            setTab("metrics");
+          }} disabled={live}>Pay now</button>
+        </div>
+      </div>
+    </section>
+  );
+
+  const SafetySection = () => (
+    <section className="page" aria-labelledby="safety-heading">
+      <div className="card card--elev">
+        <h3 className="h2" id="safety-heading" style={{ marginTop: 0 }}>Safety</h3>
+        <div className="grid-3" style={{ marginTop: 12 }}>
+          <div className="card">
+            <h4 className="h3" style={{ marginTop: 0 }}>One-tap SOS</h4>
+            <p className="muted small">Alerts local responders and employer line.</p>
+            <button type="button" className="btn btn--danger" onClick={() => setFeedbackOpen(true)}>Trigger SOS</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const MetricsSection = () => {
+    const delta = macHistory.length >= 2 ? macHistory[macHistory.length - 1] - macHistory[macHistory.length - 2] : 0;
+    const pos = delta >= 0;
+    return (
+      <section className="page" aria-labelledby="metrics-heading">
+        <div className="card card--elev" style={{ marginBottom: 16 }}>
+          <div className="row-split">
+            <div>
+              <div className="tiny muted">North-Star</div>
+              <div className="stat__title">MAC — Monthly Active Commuters</div>
+            </div>
+            <div className={`stat__delta ${pos ? "up" : "down"}`}>{pos ? "▲" : "▼"} {Math.abs(delta)}</div>
+          </div>
+
+          <div className="stat" style={{ marginTop: 12 }}>
+            <div className="stat__value">{mac}</div>
+            <div className="stat__hint muted" style={{ marginLeft: 8 }}>Updated after trips</div>
           </div>
         </div>
 
         <div className="card">
-          <h4 style={{margin:"0 0 10px", fontWeight:700}}>Employer perks</h4>
-          <ul className="text-muted" style={{margin:0, paddingLeft:18, lineHeight:1.6, fontSize:14}}>
-            <li>Sponsored shared rides (up to 50%)</li>
-            <li>Priority safety hotline</li>
-            <li>Attendance syncing</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="grid-3" style={{marginTop:20}}>
-        {routes.map(r => (
-          <RouteCard key={r.key} route={r} onStart={startTrip} />
-        ))}
-      </div>
-    </section>
-  );
-
-  const Routes = () => (
-    <section className="container" style={{paddingTop:24, paddingBottom:24}}>
-      {selectedRoute && live && (
-        <div className="card" style={{display:"grid", gap:14}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{fontWeight:700}}>Live trip • {selectedRoute.title}</div>
-            <div className="text-muted" style={{fontSize:14}}>ETA {selectedRoute.eta} min</div>
-          </div>
-          <FakeMap route={selectedRoute} />
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <Pill tone="green">Well‑lit zones</Pill>
-            <Pill tone="blue">Patrol active</Pill>
-            <Pill tone="amber">Shared ride available</Pill>
-          </div>
-          <div style={{display:"flex",gap:10}}>
-            <button className="btn btn--danger" onClick={()=>setSosOpen(true)}>SOS</button>
-            <button className="btn" onClick={()=>alert("Trip shared with employer contact.")}>Share trip</button>
-            <div style={{marginLeft:"auto"}} />
-            <button className="btn btn--primary" onClick={endTrip}>End trip</button>
-          </div>
-        </div>
-      )}
-
-      {!live && (
-        <div className="grid-3">
-          {routes.map(r => <RouteCard key={r.key} route={r} onStart={startTrip} />)}
-        </div>
-      )}
-
-      {sosOpen && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"grid",placeItems:"center",zIndex:70}}>
-          <div className="card" style={{width:"min(460px, 100%)"}}>
-            <h3 style={{marginTop:0}}>Emergency assistance</h3>
-            <p className="text-muted" style={{fontSize:14}}>Connecting you to local help and employer hotline…</p>
-            <div style={{display:"flex",gap:10,marginTop:10}}>
-              <button className="btn" onClick={()=>setSosOpen(false)}>Dismiss</button>
-              <button className="btn btn--primary" onClick={()=>{setSosOpen(false); alert("Location sent. Help on the way.");}}>Send location</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-
-  const Safety = () => (
-    <section className="container" style={{paddingTop:24, paddingBottom:24}}>
-      <div className="grid-3">
-        <div className="card" style={{gridColumn:"span 2"}}>
-          <h3 style={{marginTop:0}}>Safety tools</h3>
-          <p className="text-muted" style={{fontSize:14, marginTop:6, marginBottom:16}}>Designed for off‑peak commutes.</p>
-          <div className="grid-3">
-            <div className="card">
-              <h4 style={{marginTop:0}}>One‑tap SOS</h4>
-              <p className="text-muted" style={{fontSize:14}}>Alerts local responders and employer line.</p>
-              <button className="btn btn--danger" onClick={()=>setSosOpen(true)}>Trigger SOS</button>
-            </div>
-            <div className="card">
-              <h4 style={{marginTop:0}}>Report hazard</h4>
-              <p className="text-muted" style={{fontSize:14}}>Improve safety heatmaps for others.</p>
-              <button className="btn" onClick={()=>alert("Hazard reported. Thank you!")}>Report</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-
-  const Checkout = () => {
-    const [sponsored, setSponsored] = useState(true);
-    const base = 99; const price = sponsored? Math.max(0, base-50) : base;
-    return (
-      <section className="container" style={{paddingTop:24, paddingBottom:24}}>
-        <div className="card" style={{display:"grid", gap:14}}>
-          <h3 style={{margin:"0 0 6px"}}>Checkout</h3>
-          <div className="border" style={{padding:14, display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div>
-              <div style={{fontWeight:600}}>Shared ride (off‑peak)</div>
-              <div className="text-muted" style={{fontSize:12}}>Sponsored by employer program</div>
-            </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontWeight:800}}>₹{price}</div>
-              {sponsored && <div style={{fontSize:12, color:"#10b981"}}>₹50 sponsorship applied</div>}
-            </div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <label className="text-muted" style={{fontSize:14}}>Apply employer sponsorship</label>
-            <button className="theme-switch" onClick={()=>setSponsored(v=>!v)} aria-label="Toggle sponsorship">
-              <span className="theme-switch__dot" style={{transform: sponsored?"translateX(22px)":"translateX(0)"}}/>
-            </button>
-          </div>
-          <div style={{display:"flex", gap:10}}>
-            <button className="btn btn--primary" onClick={()=>alert("Payment successful. Ride confirmed.")}>Pay now</button>
-            <button className="btn" onClick={()=>alert("Subscribed to Premium for ₹149/mo.")}>Try Premium</button>
+          <h4 className="h3" style={{ marginTop: 0 }} id="metrics-heading">Ride history</h4>
+          <div className="ride-history">
+            {rideHistory.map(r => (
+              <div key={r.id} className="ride-row" tabIndex={0}>
+                <div className="ride-summary">
+                  <div className="ride-ts">{r.ts}</div>
+                  <div className="ride-route">{r.from} → {r.to}</div>
+                  <div className="ride-fare">₹{r.fare}</div>
+                </div>
+                <div className="ride-details">
+                  <div><strong>Payment:</strong> {r.payment}</div>
+                  <div><strong>Transport:</strong> {r.mode}</div>
+                  <div><strong>Trip ID:</strong> {`TR-${r.id.toString().padStart(4, "0")}`}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
     );
   };
 
-  const onFeedbackSubmit = ({rating,note}) => {
-    setFeedbackOpen(false);
-    alert(`Thanks! Safety rating ${rating}/5 submitted. ${note?"Note: "+note:""}`);
-    setTab("home");
-  };
+  const OnboardingSection = () => (
+    <section className="page" aria-labelledby="onboarding-heading">
+      <div className="card card--elev">
+        <h3 className="h2" id="onboarding-heading">Employer onboarding</h3>
+        <p className="muted small">Quick flow to add a company and enable sponsorships.</p>
+        <div style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn--primary" onClick={() => setTab("checkout")}>Start onboarding</button>
+        </div>
+      </div>
+    </section>
+  );
 
   return (
-    <div style={{minHeight:"100vh", display:"flex", flexDirection:"column"}}>
-      <Header tab={tab} setTab={setTab} night={night} setNight={setNight} />
+    <div className="app">
+      <Sidebar tab={tab} setTab={setTab} night={night} setNight={setNight} />
+      <main className="main">
+        {tab === "routes" && <RoutesSection />}
+        {tab === "eta" && <ETASection />}
+        {tab === "checkout" && <CheckoutSection />}
+        {tab === "safety" && <SafetySection />}
+        {tab === "metrics" && <MetricsSection />}
+        {tab === "onboarding" && <OnboardingSection />}
+      </main>
 
-      {tab==="home" && <Home />}
-      {tab==="routes" && <Routes />}
-      {tab==="safety" && <Safety />}
-      {tab==="checkout" && <Checkout />}
-
-      <FeedbackSheet open={feedbackOpen} onClose={()=>setFeedbackOpen(false)} onSubmit={onFeedbackSubmit} />
-
-      <footer className="appfoot" style={{marginTop:"auto"}}>
-        <div className="container appfoot__row">
-          <div>Prototype • No real data • © {new Date().getFullYear()}</div>
-          <div>Use the header switch to toggle Night Mode</div>
+      {feedbackOpen && (
+        <div className="sheet" role="dialog" aria-modal="true">
+          <div className="card card--elev sheet__panel" style={{ width: 520 }}>
+            <div className="row-split">
+              <h3 className="h2" style={{ margin: 0 }}>Trip feedback</h3>
+              <button className="btn" onClick={() => setFeedbackOpen(false)}>Close</button>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div className="muted small">How safe did you feel?</div>
+              <div style={{ marginTop: 8 }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} className="btn btn--round" onClick={() => submitFeedback(n)}>{n}</button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </footer>
+      )}
     </div>
   );
 }
